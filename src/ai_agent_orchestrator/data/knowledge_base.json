@@ -1,0 +1,170 @@
+{
+  "postgresql": {
+    "title": "PostgreSQL",
+    "category": "database",
+    "summary": "PostgreSQL is an open-source object-relational database known for strict ACID compliance, a mature SQL feature set, and deep extensibility.",
+    "key_points": [
+      "Strict ACID transactions with MVCC concurrency control",
+      "Rich support for JSONB, full-text search, and extensions such as PostGIS",
+      "Vertical scaling is strong; horizontal write-scaling needs extensions like Citus",
+      "Best suited for workloads needing complex joins, strong consistency, and relational integrity"
+    ],
+    "performance_score": 118
+  },
+  "mongodb": {
+    "title": "MongoDB",
+    "category": "database",
+    "summary": "MongoDB is a document-oriented NoSQL database that stores data as flexible, JSON-like BSON documents.",
+    "key_points": [
+      "Schema-flexible document model well suited to evolving or nested data",
+      "Native horizontal scaling via sharding",
+      "Tunable consistency: eventual by default, strong with majority write/read concern",
+      "Best suited for high write-throughput, denormalized, rapidly-iterating workloads"
+    ],
+    "performance_score": 104
+  },
+  "redis": {
+    "title": "Redis",
+    "category": "database",
+    "summary": "Redis is an in-memory key-value store used for caching, session storage, queues, and real-time leaderboards.",
+    "key_points": [
+      "Sub-millisecond reads and writes from an in-memory data model",
+      "Rich data structures: strings, hashes, sorted sets, streams, HyperLogLog",
+      "Optional persistence via RDB snapshots and an append-only file",
+      "Not a primary system of record for large datasets that exceed available memory"
+    ],
+    "performance_score": 142
+  },
+  "kafka": {
+    "title": "Apache Kafka",
+    "category": "messaging",
+    "summary": "Kafka is a distributed event-streaming platform built around durable, partitioned, append-only logs.",
+    "key_points": [
+      "High-throughput, ordered-per-partition log with configurable retention",
+      "Decouples producers and consumers; supports replay and multiple independent consumer groups",
+      "Scales horizontally by adding brokers and partitions",
+      "Operationally heavier than a simple message queue; shines at sustained high volume"
+    ],
+    "performance_score": 131
+  },
+  "kubernetes": {
+    "title": "Kubernetes",
+    "category": "infrastructure",
+    "summary": "Kubernetes is a container-orchestration system that automates deployment, scaling, and recovery of containerized workloads.",
+    "key_points": [
+      "Declarative desired-state model reconciled by control-loop controllers",
+      "Built-in self-healing, rolling updates, and horizontal pod autoscaling",
+      "Service discovery and load balancing via a built-in DNS and virtual IPs",
+      "Steep operational learning curve relative to simpler PaaS options"
+    ],
+    "performance_score": 96
+  },
+  "docker": {
+    "title": "Docker",
+    "category": "infrastructure",
+    "summary": "Docker packages applications and their dependencies into portable, isolated containers sharing the host kernel.",
+    "key_points": [
+      "Images are layered and cacheable, giving fast, reproducible builds",
+      "Containers start in milliseconds, far faster than a full virtual machine",
+      "A single Docker host has no built-in multi-node scheduling (that is what Kubernetes adds)",
+      "The de facto standard container image format and runtime interface"
+    ],
+    "performance_score": 109
+  },
+  "graphql": {
+    "title": "GraphQL",
+    "category": "api",
+    "summary": "GraphQL is a query language and runtime for APIs that lets clients request exactly the fields they need.",
+    "key_points": [
+      "Clients avoid both over-fetching and under-fetching with a single typed endpoint",
+      "A strongly typed schema serves as executable API documentation",
+      "Caching is harder than plain REST because requests are not simple URLs",
+      "Well suited to aggregating many backend sources behind one graph"
+    ],
+    "performance_score": 101
+  },
+  "rest api": {
+    "title": "REST API",
+    "category": "api",
+    "summary": "REST is an architectural style for networked APIs built around stateless requests to named resources over HTTP.",
+    "key_points": [
+      "Resources are addressed by URL and manipulated with standard HTTP verbs",
+      "Simple to cache, load-balance, and reason about at the HTTP layer",
+      "Can require multiple round trips for deeply nested or related data",
+      "The most widely adopted API style across the industry"
+    ],
+    "performance_score": 110
+  },
+  "python": {
+    "title": "Python",
+    "category": "language",
+    "summary": "Python is a dynamically typed, interpreted language prized for readability and an enormous ecosystem.",
+    "key_points": [
+      "Readable syntax and a 'batteries included' standard library speed up development",
+      "Dominant ecosystem for data science, ML, and scripting",
+      "The GIL limits true multi-threaded CPU parallelism within one process",
+      "Slower raw execution than compiled languages for CPU-bound inner loops"
+    ],
+    "performance_score": 88
+  },
+  "rust": {
+    "title": "Rust",
+    "category": "language",
+    "summary": "Rust is a compiled systems language that guarantees memory safety without a garbage collector via its ownership model.",
+    "key_points": [
+      "Ownership and borrow-checking eliminate whole classes of memory bugs at compile time",
+      "Performance comparable to C/C++ with no garbage-collection pauses",
+      "Steeper learning curve due to the borrow checker",
+      "Growing adoption in performance- and safety-critical infrastructure"
+    ],
+    "performance_score": 137
+  },
+  "transformer architecture": {
+    "title": "Transformer architecture",
+    "category": "machine-learning",
+    "summary": "The transformer is a neural network architecture built on self-attention, enabling parallel processing of sequences.",
+    "key_points": [
+      "Self-attention lets every token weigh every other token directly, without recurrence",
+      "Parallelizable training made today's large-scale language models practical",
+      "Attention cost grows quadratically with sequence length",
+      "The foundation of modern large language models"
+    ],
+    "performance_score": 125
+  },
+  "reinforcement learning": {
+    "title": "Reinforcement learning",
+    "category": "machine-learning",
+    "summary": "Reinforcement learning trains an agent to choose actions that maximize cumulative reward through trial-and-error interaction with an environment.",
+    "key_points": [
+      "Learns from reward signals rather than labeled examples",
+      "Well suited to sequential decision problems: games, robotics, control",
+      "Often sample-inefficient; can need millions of environment interactions",
+      "Reward design mistakes can lead to unintended, exploitative behavior"
+    ],
+    "performance_score": 92
+  },
+  "microservices": {
+    "title": "Microservices",
+    "category": "architecture",
+    "summary": "Microservices structure an application as a set of small, independently deployable services communicating over the network.",
+    "key_points": [
+      "Independent deployment and scaling per service, by independent teams",
+      "Failure isolation keeps one service's outage from taking down the whole system",
+      "Adds distributed-systems complexity: network calls, partial failure, versioning",
+      "Needs real operational investment in observability and service discovery"
+    ],
+    "performance_score": 99
+  },
+  "serverless": {
+    "title": "Serverless computing",
+    "category": "architecture",
+    "summary": "Serverless computing runs short-lived functions on infrastructure that is fully managed and scaled by the provider.",
+    "key_points": [
+      "No servers to provision or patch; the platform scales to zero and back up",
+      "Billing is typically per invocation and execution time",
+      "Cold starts can add latency to infrequently invoked functions",
+      "Long-running or stateful workloads are a poor fit"
+    ],
+    "performance_score": 94
+  }
+}

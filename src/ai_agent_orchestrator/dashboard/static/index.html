@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Agent Orchestrator</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0e16'/%3E%3Ccircle cx='16' cy='8' r='3.4' fill='%234fd1c5'/%3E%3Ccircle cx='7' cy='24' r='3.4' fill='%235b8cff'/%3E%3Ccircle cx='25' cy='24' r='3.4' fill='%23f2b94a'/%3E%3Cpath d='M16 11.4 L8.6 21.3 M16 11.4 L23.4 21.3' stroke='%233a4a66' stroke-width='1.6' fill='none'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --bg: #0a0d14;
+    --bg-raised: #10141d;
+    --bg-panel: #12161f;
+    --bg-inset: #0d1018;
+    --border: #232a38;
+    --border-soft: #1a2029;
+    --text: #e8ebf1;
+    --text-dim: #8b93a6;
+    --text-faint: #5b6478;
+    --accent: #4fd1c5;
+    --accent-soft: rgba(79, 209, 197, 0.14);
+    --blue: #5b8cff;
+    --blue-soft: rgba(91, 140, 255, 0.14);
+
+    --status-pending-fg: #8b93a6;
+    --status-pending-bg: #171c26;
+    --status-pending-border: #2b3340;
+
+    --status-running-fg: #cfae4a;
+    --status-running-bg: #221c0f;
+    --status-running-border: #574522;
+
+    --status-done-fg: #4fd19b;
+    --status-done-bg: #0e2019;
+    --status-done-border: #1f4a39;
+
+    --status-failed-fg: #f2676b;
+    --status-failed-bg: #260f12;
+    --status-failed-border: #5a2227;
+
+    --font: -apple-system, "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+    --mono: "SFMono-Regular", "Cascadia Code", Consolas, "Courier New", monospace;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  a { color: var(--accent); }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* ---------- Header band ---------- */
+  header.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border-soft);
+    background: linear-gradient(180deg, var(--bg-raised), var(--bg));
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: radial-gradient(circle at 30% 25%, #1b2130, #0b0e16);
+    border: 1px solid var(--border);
+    display: grid;
+    place-items: center;
+  }
+
+  .brand-mark svg { width: 20px; height: 20px; }
+
+  .brand-text h1 {
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    margin: 0;
+  }
+
+  .brand-text p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .conn-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg-panel);
+  }
+
+  .conn-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-faint);
+  }
+
+  .conn-status.connected .conn-dot { background: var(--status-done-fg); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .conn-status.connecting .conn-dot { background: var(--status-running-fg); animation: blink 1.1s infinite; }
+  .conn-status.disconnected .conn-dot { background: var(--status-failed-fg); }
+
+  @keyframes blink { 50% { opacity: 0.25; } }
+
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 24px 28px 40px;
+    max-width: 1320px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  section.panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .panel-head h2 {
+    font-size: 13px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 0;
+  }
+
+  .panel-head .hint { font-size: 12px; color: var(--text-faint); }
+
+  /* ---------- Command band ---------- */
+  .command-row {
+    display: flex;
+    gap: 12px;
+    padding: 18px;
+    align-items: flex-start;
+  }
+
+  textarea#requestInput {
+    flex: 1;
+    resize: vertical;
+    min-height: 64px;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13.5px;
+    padding: 12px 14px;
+    line-height: 1.5;
+  }
+
+  textarea#requestInput:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
+
+  button#runBtn {
+    background: linear-gradient(180deg, #5fe0d3, var(--accent));
+    color: #06211d;
+    border: none;
+    font-weight: 650;
+    font-size: 13.5px;
+    padding: 0 22px;
+    height: 64px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  button#runBtn:disabled { opacity: 0.5; cursor: progress; }
+  button#runBtn:not(:disabled):hover { filter: brightness(1.06); }
+
+  .examples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 18px 16px;
+  }
+
+  .chip {
+    font-size: 11.5px;
+    color: var(--text-dim);
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+
+  .recent-runs {
+    display: flex;
+    gap: 8px;
+    padding: 0 18px 18px;
+    flex-wrap: wrap;
+  }
+
+  .run-chip {
+    font-size: 11.5px;
+    font-family: var(--mono);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 10px 5px 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    background: var(--bg-inset);
+    color: var(--text-dim);
+  }
+
+  .run-chip:hover { color: var(--text); border-color: var(--blue); }
+  .run-chip .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  /* ---------- Stat tiles ---------- */
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--border-soft);
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border-soft);
+  }
+
+  .stat-tile {
+    background: var(--bg-panel);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat-tile .value { font-size: 26px; font-weight: 650; font-family: var(--mono); }
+  .stat-tile .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
+  .stat-tile.pending .value { color: var(--status-pending-fg); }
+  .stat-tile.running .value { color: var(--status-running-fg); }
+  .stat-tile.done .value { color: var(--status-done-fg); }
+  .stat-tile.failed .value { color: var(--status-failed-fg); }
+
+  /* ---------- Main grid: graph + log ---------- */
+  .work-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .graph-scroll {
+    overflow: auto;
+    padding: 18px;
+    max-height: 480px;
+  }
+
+  .graph-empty {
+    color: var(--text-faint);
+    font-size: 13px;
+    padding: 40px 0;
+    text-align: center;
+  }
+
+  svg#dagSvg { display: block; }
+
+  .node-rect { stroke-width: 1.6; transition: fill 0.25s, stroke 0.25s; }
+  .node-rect.pending { fill: var(--status-pending-bg); stroke: var(--status-pending-border); }
+  .node-rect.running { fill: var(--status-running-bg); stroke: var(--status-running-fg); }
+  .node-rect.done { fill: var(--status-done-bg); stroke: var(--status-done-border); }
+  .node-rect.failed { fill: var(--status-failed-bg); stroke: var(--status-failed-border); }
+
+  .node-rect.running { animation: pulse 1.6s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .node-rect.running { animation: none; } }
+  @keyframes pulse {
+    0%, 100% { filter: drop-shadow(0 0 0 rgba(207, 174, 74, 0)); }
+    50% { filter: drop-shadow(0 0 6px rgba(207, 174, 74, 0.55)); }
+  }
+
+  .node-id { font-family: var(--mono); font-size: 13px; font-weight: 700; fill: var(--text); }
+  .node-cap { font-size: 10px; letter-spacing: 0.04em; fill: var(--text-dim); text-transform: uppercase; }
+  .node-status-text { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+  .node-status-text.pending { fill: var(--status-pending-fg); }
+  .node-status-text.running { fill: var(--status-running-fg); }
+  .node-status-text.done { fill: var(--status-done-fg); }
+  .node-status-text.failed { fill: var(--status-failed-fg); }
+
+  .edge-path { fill: none; stroke: #2a3242; stroke-width: 1.6; }
+  .node-group.highlight .node-rect { stroke-width: 3; }
+
+  /* ---------- Event log ---------- */
+  .log-list {
+    list-style: none;
+    margin: 0;
+    padding: 10px;
+    max-height: 480px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .log-item {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    padding: 7px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-inset);
+    border: 1px solid var(--border-soft);
+  }
+
+  .log-time { font-family: var(--mono); color: var(--text-faint); font-size: 11px; flex-shrink: 0; }
+
+  .log-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+
+  .log-badge.run { background: var(--blue-soft); color: var(--blue); }
+  .log-badge.pending, .log-badge.started { background: var(--status-running-bg); color: var(--status-running-fg); }
+  .log-badge.completed { background: var(--status-done-bg); color: var(--status-done-fg); }
+  .log-badge.failed { background: var(--status-failed-bg); color: var(--status-failed-fg); }
+
+  .log-msg { color: var(--text-dim); overflow-wrap: anywhere; }
+
+  .log-empty { color: var(--text-faint); font-size: 12.5px; padding: 30px 10px; text-align: center; }
+
+  /* ---------- Answer panel ---------- */
+  #answerPanel { display: none; }
+  #answerPanel.visible { display: block; }
+
+  .answer-body {
+    padding: 18px;
+    font-size: 13.5px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    color: var(--text);
+  }
+
+  .citation-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 0 18px 18px;
+  }
+
+  .citation-chip {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+
+  .citation-chip:hover { border-color: var(--accent); }
+
+  footer {
+    text-align: center;
+    padding: 18px;
+    font-size: 11.5px;
+    color: var(--text-faint);
+    border-top: 1px solid var(--border-soft);
+  }
+
+  @media (max-width: 860px) {
+    .work-grid { grid-template-columns: 1fr; }
+    .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    header.topbar { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="16" cy="8" r="3.4" fill="#4fd1c5"/>
+        <circle cx="7" cy="24" r="3.4" fill="#5b8cff"/>
+        <circle cx="25" cy="24" r="3.4" fill="#f2b94a"/>
+        <path d="M16 11.4 L8.6 21.3 M16 11.4 L23.4 21.3" stroke="#3a4a66" stroke-width="1.6" fill="none"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <h1>AI Agent Orchestrator</h1>
+      <p>Hierarchical multi-agent task orchestration, live</p>
+    </div>
+  </div>
+  <div class="conn-status connecting" id="connStatus">
+    <span class="conn-dot" aria-hidden="true"></span>
+    <span id="connLabel">Connecting…</span>
+  </div>
+</header>
+
+<main>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>New orchestration run</h2>
+      <span class="hint">Planner → Scheduler → Workers → Blackboard → Synthesizer</span>
+    </div>
+    <form class="command-row" id="runForm">
+      <label class="sr-only" for="requestInput">Describe the request to orchestrate</label>
+      <textarea id="requestInput" placeholder="e.g. Research PostgreSQL and MongoDB, calculate the average of their performance scores (120, 95, 110, 130), and write an executive summary comparing them for a startup choosing a database." required></textarea>
+      <button id="runBtn" type="submit">Run ▸</button>
+    </form>
+    <div class="examples" id="examples" aria-label="Example requests"></div>
+    <div class="recent-runs" id="recentRuns" aria-label="Recent runs"></div>
+  </section>
+
+  <div class="stat-row" role="group" aria-label="Subtask status counts for the current run">
+    <div class="stat-tile pending"><span class="value" id="statPending">0</span><span class="label">Pending</span></div>
+    <div class="stat-tile running"><span class="value" id="statRunning">0</span><span class="label">Running</span></div>
+    <div class="stat-tile done"><span class="value" id="statDone">0</span><span class="label">Done</span></div>
+    <div class="stat-tile failed"><span class="value" id="statFailed">0</span><span class="label">Failed</span></div>
+    <div class="stat-tile"><span class="value" id="statTotal">0</span><span class="label">Total subtasks</span></div>
+  </div>
+
+  <div class="work-grid">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Task DAG</h2>
+        <span class="hint" id="runIdLabel">No run yet</span>
+      </div>
+      <div class="graph-scroll" id="graphScroll">
+        <div class="graph-empty" id="graphEmpty">Submit a request above to see its subtask graph appear here.</div>
+        <svg id="dagSvg" role="img" aria-labelledby="dagSvgTitle" style="display:none;">
+          <title id="dagSvgTitle">Task dependency graph</title>
+        </svg>
+        <ul class="sr-only" id="dagSrList"></ul>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Event log</h2>
+        <span class="hint">live</span>
+      </div>
+      <ul class="log-list" id="logList" role="log" aria-live="polite" aria-label="Orchestration event log">
+        <li class="log-empty" id="logEmpty">Events will stream here as a run executes.</li>
+      </ul>
+    </section>
+  </div>
+
+  <section class="panel" id="answerPanel">
+    <div class="panel-head">
+      <h2>Synthesized answer</h2>
+      <span class="hint" id="answerStatus"></span>
+    </div>
+    <div class="answer-body" id="answerBody"></div>
+    <div class="citation-row" id="citationRow"></div>
+  </section>
+
+</main>
+
+<footer>
+  AI Agent Orchestrator &mdash; Planner, Scheduler, Workers, Blackboard and Synthesizer, observed live over a WebSocket.
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const EXAMPLES = [
+    "Research PostgreSQL and MongoDB, calculate the average of their performance scores (120, 95, 110, 130), and write an executive summary comparing them for a startup choosing a database.",
+    "Research Kubernetes and Docker, calculate the sum of their adoption scores (118, 96, 109), and write a short briefing for a platform team.",
+    "Research the transformer architecture and reinforcement learning, then write a one-paragraph primer for new ML engineers.",
+    "Calculate the median of 12, 45, 7, 33, 19 and write a one-line note explaining what it means.",
+  ];
+
+  const NODE_W = 196, NODE_H = 68, COL_GAP = 96, ROW_GAP = 26, MARGIN = 28;
+
+  const el = (id) => document.getElementById(id);
+  const svg = el("dagSvg");
+  const graphEmpty = el("graphEmpty");
+  const graphScroll = el("graphScroll");
+  const dagSrList = el("dagSrList");
+  const logList = el("logList");
+  const logEmpty = el("logEmpty");
+  const connStatus = el("connStatus");
+  const connLabel = el("connLabel");
+  const runBtn = el("runBtn");
+  const runIdLabel = el("runIdLabel");
+  const answerPanel = el("answerPanel");
+  const answerBody = el("answerBody");
+  const answerStatus = el("answerStatus");
+  const citationRow = el("citationRow");
+
+  const state = {
+    currentRunId: null,
+    nodes: new Map(),   // id -> {id, description, capability, depends_on, status}
+    order: [],
+    ws: null,
+    reconnectDelay: 1000,
+  };
+
+  // ---------------- examples + recent runs ----------------
+
+  function renderExamples() {
+    const container = el("examples");
+    container.innerHTML = "";
+    EXAMPLES.forEach((text) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip";
+      chip.textContent = text.length > 64 ? text.slice(0, 61) + "…" : text;
+      chip.title = text;
+      chip.addEventListener("click", () => { el("requestInput").value = text; });
+      container.appendChild(chip);
+    });
+  }
+
+  async function refreshRecentRuns() {
+    try {
+      const res = await fetch("/runs?limit=8");
+      if (!res.ok) return;
+      const runs = await res.json();
+      const container = el("recentRuns");
+      container.innerHTML = "";
+      runs.forEach((run) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "run-chip";
+        const dot = document.createElement("span");
+        dot.className = "dot";
+        dot.style.background = statusColor(run.status);
+        chip.appendChild(dot);
+        chip.appendChild(document.createTextNode(run.run_id + " · " + run.status));
+        chip.title = run.request;
+        chip.addEventListener("click", () => loadPastRun(run.run_id));
+        container.appendChild(chip);
+      });
+    } catch (err) {
+      // best-effort; the dashboard still works without run history
+    }
+  }
+
+  function statusColor(status) {
+    switch (status) {
+      case "completed": return "var(--status-done-fg)";
+      case "failed": return "var(--status-failed-fg)";
+      case "running": return "var(--status-running-fg)";
+      default: return "var(--status-pending-fg)";
+    }
+  }
+
+  // ---------------- stat tiles ----------------
+
+  function updateStatTiles() {
+    let pending = 0, running = 0, done = 0, failed = 0;
+    for (const node of state.nodes.values()) {
+      if (node.status === "pending") pending++;
+      else if (node.status === "running") running++;
+      else if (node.status === "done") done++;
+      else if (node.status === "failed") failed++;
+    }
+    el("statPending").textContent = pending;
+    el("statRunning").textContent = running;
+    el("statDone").textContent = done;
+    el("statFailed").textContent = failed;
+    el("statTotal").textContent = state.nodes.size;
+  }
+
+  // ---------------- DAG rendering ----------------
+
+  function resetGraph() {
+    state.nodes.clear();
+    state.order = [];
+    svg.innerHTML = '<title id="dagSvgTitle">Task dependency graph</title>';
+    svg.style.display = "none";
+    graphEmpty.style.display = "block";
+    dagSrList.innerHTML = "";
+    updateStatTiles();
+  }
+
+  function loadSubtasks(subtasks) {
+    state.nodes.clear();
+    state.order = subtasks.map((s) => s.id);
+    subtasks.forEach((s) => state.nodes.set(s.id, { ...s }));
+    renderGraph();
+    updateStatTiles();
+  }
+
+  function computeLayout() {
+    const depth = new Map();
+    function depthOf(id) {
+      if (depth.has(id)) return depth.get(id);
+      const node = state.nodes.get(id);
+      if (!node || !node.depends_on || node.depends_on.length === 0) {
+        depth.set(id, 0);
+        return 0;
+      }
+      const d = 1 + Math.max(...node.depends_on.map(depthOf));
+      depth.set(id, d);
+      return d;
+    }
+    state.order.forEach(depthOf);
+
+    const columns = new Map(); // depth -> [ids]
+    state.order.forEach((id) => {
+      const d = depth.get(id);
+      if (!columns.has(d)) columns.set(d, []);
+      columns.get(d).push(id);
+    });
+
+    const positions = new Map(); // id -> {x, y}
+    for (const [d, ids] of columns.entries()) {
+      ids.forEach((id, i) => {
+        positions.set(id, {
+          x: MARGIN + d * (NODE_W + COL_GAP),
+          y: MARGIN + i * (NODE_H + ROW_GAP),
+        });
+      });
+    }
+    const maxDepth = Math.max(0, ...Array.from(columns.keys()));
+    const maxRows = Math.max(1, ...Array.from(columns.values()).map((v) => v.length));
+    const width = MARGIN * 2 + (maxDepth + 1) * NODE_W + maxDepth * COL_GAP;
+    const height = MARGIN * 2 + maxRows * NODE_H + (maxRows - 1) * ROW_GAP;
+    return { positions, width, height };
+  }
+
+  function statusLabel(status) {
+    return { pending: "Pending", running: "Running", done: "Done", failed: "Failed" }[status] || status;
+  }
+
+  function renderGraph() {
+    if (state.nodes.size === 0) { resetGraph(); return; }
+    graphEmpty.style.display = "none";
+    svg.style.display = "block";
+
+    const { positions, width, height } = computeLayout();
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("width", width);
+    svg.setAttribute("height", height);
+
+    const parts = ['<title id="dagSvgTitle">Task dependency graph</title>'];
+    const srItems = [];
+
+    // edges first, so nodes paint on top
+    state.order.forEach((id) => {
+      const node = state.nodes.get(id);
+      const to = positions.get(id);
+      (node.depends_on || []).forEach((depId) => {
+        const from = positions.get(depId);
+        if (!from) return;
+        const x1 = from.x + NODE_W, y1 = from.y + NODE_H / 2;
+        const x2 = to.x, y2 = to.y + NODE_H / 2;
+        const midX = (x1 + x2) / 2;
+        parts.push(
+          `<path class="edge-path" marker-end="url(#arrowhead)" d="M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}" />`
+        );
+      });
+    });
+
+    state.order.forEach((id) => {
+      const node = state.nodes.get(id);
+      const pos = positions.get(id);
+      const status = node.status || "pending";
+      const desc = escapeXml(node.description || "");
+      parts.push(`
+        <g class="node-group" data-id="${id}">
+          <title>${escapeXml(id)} (${escapeXml(node.capability)}): ${desc}</title>
+          <rect class="node-rect ${status}" x="${pos.x}" y="${pos.y}" width="${NODE_W}" height="${NODE_H}" rx="12"></rect>
+          <text class="node-id" x="${pos.x + 14}" y="${pos.y + 24}">${escapeXml(id)}</text>
+          <text class="node-cap" x="${pos.x + 14}" y="${pos.y + 40}">${escapeXml(node.capability)}</text>
+          <text class="node-status-text ${status}" x="${pos.x + 14}" y="${pos.y + 57}">${statusLabel(status)}</text>
+        </g>
+      `);
+      srItems.push(`<li>${escapeXml(id)} (${escapeXml(node.capability)}): ${statusLabel(status)} — ${desc}</li>`);
+    });
+
+    parts.push(`
+      <defs>
+        <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#2a3242"></path>
+        </marker>
+      </defs>
+    `);
+
+    svg.innerHTML = parts.join("");
+    dagSrList.innerHTML = srItems.join("");
+
+    const done = Array.from(state.nodes.values()).filter((n) => n.status === "done").length;
+    const running = Array.from(state.nodes.values()).filter((n) => n.status === "running").length;
+    svg.setAttribute(
+      "aria-label",
+      `Task dependency graph: ${state.nodes.size} subtasks, ${done} done, ${running} running.`
+    );
+
+    document.querySelectorAll(".node-group").forEach((g) => {
+      g.addEventListener("mouseenter", () => highlightCitation(g.dataset.id, true));
+      g.addEventListener("mouseleave", () => highlightCitation(g.dataset.id, false));
+    });
+  }
+
+  function updateNodeStatus(id, status) {
+    const node = state.nodes.get(id);
+    if (!node) return;
+    node.status = status;
+    const group = svg.querySelector(`.node-group[data-id="${cssEscape(id)}"]`);
+    if (group) {
+      const rect = group.querySelector(".node-rect");
+      const statusText = group.querySelector(".node-status-text");
+      rect.setAttribute("class", `node-rect ${status}`);
+      statusText.setAttribute("class", `node-status-text ${status}`);
+      statusText.textContent = statusLabel(status);
+    }
+    updateStatTiles();
+  }
+
+  function highlightCitation(id, on) {
+    const group = svg.querySelector(`.node-group[data-id="${cssEscape(id)}"]`);
+    if (group) group.classList.toggle("highlight", on);
+    const chip = citationRow.querySelector(`[data-cite="${cssEscape(id)}"]`);
+    if (chip) chip.style.borderColor = on ? "var(--accent)" : "var(--border)";
+  }
+
+  function escapeXml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;",
+    }[c]));
+  }
+
+  function cssEscape(str) {
+    return String(str).replace(/["\\]/g, "\\$&");
+  }
+
+  // ---------------- event log ----------------
+
+  function logEventType(type) {
+    if (type === "run_started" || type === "run_completed" || type === "run_failed") return "run";
+    if (type === "subtask_started") return "started";
+    if (type === "subtask_completed") return "completed";
+    if (type === "subtask_failed") return "failed";
+    return "pending";
+  }
+
+  function describeEvent(event) {
+    const d = event.data || {};
+    switch (event.type) {
+      case "run_started": return `Run started: “${truncate(d.request, 80)}”`;
+      case "dag_created": return `Plan ready: ${((d.subtasks) || []).length} subtasks`;
+      case "subtask_started": return `[${event.subtask_id}] started (${d.capability})`;
+      case "subtask_completed": return `[${event.subtask_id}] completed in ${(d.duration || 0).toFixed(2)}s`;
+      case "subtask_failed": return `[${event.subtask_id}] failed: ${d.error}`;
+      case "run_completed": return `Run completed — cited ${(d.citations || []).join(", ") || "nothing"}`;
+      case "run_failed": return `Run failed: ${d.error}`;
+      default: return event.type;
+    }
+  }
+
+  function truncate(text, n) {
+    if (!text) return "";
+    return text.length > n ? text.slice(0, n - 1) + "…" : text;
+  }
+
+  function appendLog(event) {
+    if (logEmpty) logEmpty.remove();
+    const li = document.createElement("li");
+    li.className = "log-item";
+    const time = new Date(event.timestamp * 1000);
+    const hh = String(time.getHours()).padStart(2, "0");
+    const mm = String(time.getMinutes()).padStart(2, "0");
+    const ss = String(time.getSeconds()).padStart(2, "0");
+    const ms = String(time.getMilliseconds()).padStart(3, "0");
+
+    const timeEl = document.createElement("span");
+    timeEl.className = "log-time";
+    timeEl.textContent = `${hh}:${mm}:${ss}.${ms}`;
+
+    const badge = document.createElement("span");
+    badge.className = `log-badge ${logEventType(event.type)}`;
+    badge.textContent = event.type.replace("subtask_", "").replace("run_", "run ");
+
+    const msg = document.createElement("span");
+    msg.className = "log-msg";
+    msg.textContent = describeEvent(event);
+
+    li.append(timeEl, badge, msg);
+
+    const nearBottom = logList.scrollHeight - logList.scrollTop - logList.clientHeight < 40;
+    logList.appendChild(li);
+    if (nearBottom) logList.scrollTop = logList.scrollHeight;
+  }
+
+  function resetLog() {
+    logList.innerHTML = '<li class="log-empty" id="logEmpty">Events will stream here as a run executes.</li>';
+  }
+
+  // ---------------- answer panel ----------------
+
+  function showAnswer(runRecord) {
+    answerPanel.classList.add("visible");
+    answerStatus.textContent = runRecord.status;
+    answerBody.textContent = runRecord.final_answer || "(no answer)";
+    citationRow.innerHTML = "";
+    (runRecord.citations || []).forEach((id) => {
+      const chip = document.createElement("span");
+      chip.className = "citation-chip";
+      chip.dataset.cite = id;
+      chip.textContent = id;
+      chip.addEventListener("mouseenter", () => highlightCitation(id, true));
+      chip.addEventListener("mouseleave", () => highlightCitation(id, false));
+      citationRow.appendChild(chip);
+    });
+  }
+
+  function hideAnswer() {
+    answerPanel.classList.remove("visible");
+    answerBody.textContent = "";
+    citationRow.innerHTML = "";
+  }
+
+  // ---------------- websocket ----------------
+
+  function connectWs() {
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${proto}//${location.host}/ws`);
+    state.ws = ws;
+
+    ws.onopen = () => {
+      connStatus.className = "conn-status connected";
+      connLabel.textContent = "Live";
+      state.reconnectDelay = 1000;
+    };
+    ws.onclose = () => {
+      connStatus.className = "conn-status disconnected";
+      connLabel.textContent = "Disconnected — retrying…";
+      setTimeout(connectWs, state.reconnectDelay);
+      state.reconnectDelay = Math.min(state.reconnectDelay * 1.6, 15000);
+    };
+    ws.onerror = () => { ws.close(); };
+    ws.onmessage = (msg) => {
+      let event;
+      try { event = JSON.parse(msg.data); } catch (err) { return; }
+      handleEvent(event);
+    };
+  }
+
+  function handleEvent(event) {
+    if (event.run_id !== state.currentRunId) return;
+    appendLog(event);
+
+    switch (event.type) {
+      case "dag_created":
+        loadSubtasks(event.data.subtasks || []);
+        break;
+      case "subtask_started":
+        updateNodeStatus(event.subtask_id, "running");
+        break;
+      case "subtask_completed":
+        updateNodeStatus(event.subtask_id, "done");
+        break;
+      case "subtask_failed":
+        updateNodeStatus(event.subtask_id, "failed");
+        break;
+      case "run_completed":
+      case "run_failed":
+        runBtn.disabled = false;
+        fetchRun(event.run_id).then((record) => { if (record) showAnswer(record); });
+        refreshRecentRuns();
+        break;
+    }
+  }
+
+  async function fetchRun(runId) {
+    try {
+      const res = await fetch(`/runs/${encodeURIComponent(runId)}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async function loadPastRun(runId) {
+    const record = await fetchRun(runId);
+    if (!record) return;
+    state.currentRunId = runId;
+    runIdLabel.textContent = `${runId} · ${record.status}`;
+    resetLog();
+    (record.events || []).forEach(appendLog);
+    if (record.events && record.events.length === 0) resetLog();
+    loadSubtasks(record.subtasks || []);
+    if (record.status === "completed" || record.status === "failed") {
+      showAnswer(record);
+    } else {
+      hideAnswer();
+    }
+  }
+
+  // ---------------- form submit ----------------
+
+  el("runForm").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const request = el("requestInput").value.trim();
+    if (!request) return;
+
+    runBtn.disabled = true;
+    resetGraph();
+    resetLog();
+    hideAnswer();
+
+    try {
+      const res = await fetch("/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ request }),
+      });
+      if (!res.ok) {
+        runBtn.disabled = false;
+        appendLog({
+          run_id: "-", type: "run_failed", timestamp: Date.now() / 1000,
+          data: { error: "Could not start run (HTTP " + res.status + ")" },
+        });
+        return;
+      }
+      const data = await res.json();
+      state.currentRunId = data.run_id;
+      runIdLabel.textContent = `${data.run_id} · running`;
+    } catch (err) {
+      runBtn.disabled = false;
+    }
+  });
+
+  // ---------------- boot ----------------
+
+  renderExamples();
+  refreshRecentRuns();
+  connectWs();
+})();
+</script>
+</body>
+</html>
